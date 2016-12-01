@@ -1,0 +1,89 @@
+#!/usr/bin/python3
+
+import requests, optparse, base64, time, re
+
+def log(str):
+    print('\r' + ' ' * 20 + '\r' + str, end='\r')
+
+def login(user_id, password):
+    data = {'user_id1': user_id, 'password1': password}
+    response = requests.post('http://poj.org/login', data)
+    if response.text.find('failed') < 0:
+        global cookies
+        cookies = response.cookies
+        return True
+    else:
+        return False
+
+def submit(problem_id, language, code):
+    source = base64.b64encode(code.encode()).decode()
+    data = {'problem_id': problem_id, 'language': language, 'source': source, 'encoded': 1}
+    global cookies
+    res = requests.post('http://poj.org/submit', data, cookies=cookies)
+    if res.text.find('No such problem') >= 0:
+        return 1
+    elif res.text.find('Please choose language') >= 0:
+        return 2
+    elif res.text.find('Source code too long or too short') >= 0:
+        return 3
+    else:
+        return 0
+
+def get_result(user_id):
+    url = 'http://poj.org/status?user_id=%s' % user_id
+    html = requests.get(url).text
+    results = re.search('<td><font color=.*?>(.*?)</font>', html)
+    if results:
+        return results.group(1)
+    else:
+        return 'error'
+
+def main():
+    parser = optparse.OptionParser('poj -u <user_id> -p <password> -n <problem_id> -l <language> <file_name>')
+    parser.add_option('-u', dest='user_id', type='string', help='specify user id')
+    parser.add_option('-p', dest='password', type='string', help='specify password')
+    parser.add_option('-n', dest='problem_id', type='int', help='specify problem id')
+    parser.add_option('-l', dest='language', type='int', help='specify language, 0 for G++, 1 for GCC, 2 for Java, 3 for Pascal, 4 for C++, 5 for C, 6 for Fortran')
+    options, args = parser.parse_args()
+    if not args:
+        log(parser.usage)
+        return
+    user_id = options.user_id or 'poj_cmd'
+    password = options.password or '123456'
+    problem_id = options.problem_id or 1000
+    language = options.language or 0
+    
+    log('Logining...')
+    if not login(user_id, password):
+        log('Login failed!')
+        return
+    log('Submiting...')
+    with open(args[0], 'r') as f:
+        code = f.read()
+        result = submit(problem_id, language, code)
+        if result == 1:
+            log('No such problem')
+            return
+        elif result == 2:
+            log('No such language')
+            return
+        elif result ==3:
+            log('Code is too short or too long')
+            return 
+    log('Judging...')
+    while True:
+        result = get_result(user_id)
+        if result in ['Running & Judging', 'Waiting', 'Compiling']:
+            log(result)
+            time.sleep(1)
+        else:
+            log(result)
+            break
+
+if __name__ == '__main__':
+    main()
+    print('\n')
+
+
+
+
