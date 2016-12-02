@@ -3,7 +3,7 @@
 import requests, optparse, base64, time, re
 
 def log(str):
-    print('\r' + ' ' * 20 + '\r' + str, end='\r')
+    print(' ' * 20 + '\r' + str, end='\r')
 
 def login(user_id, password):
     data = {'user_id1': user_id, 'password1': password}
